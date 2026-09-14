@@ -1,0 +1,12 @@
+tensorflow-macos==2.16.2
+tensorflow-metal==1.2.0
+streamlit==1.59.1
+opencv-python==5.0.0.93
+pypdf==6.14.2
+groq==1.5.0
+kagglehub==1.0.2
+scikit-learn==1.7.2
+matplotlib==3.10.9
+seaborn==0.13.2
+numpy<2.0.0
+pillow>=10.0.0

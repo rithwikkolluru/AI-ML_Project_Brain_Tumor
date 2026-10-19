@@ -2,12 +2,21 @@ services:
   - type: web
     name: brain-tumor-ai-workstation
     runtime: docker
+    # "starter" = Render free tier (512 MB RAM, 0.1 CPU)
+    # Upgrade to "standard" ($7/mo) for reliable ML inference
     plan: starter
     region: oregon
     dockerfilePath: Dockerfile
+    # Render injects PORT automatically; Dockerfile reads $PORT
     healthCheckPath: /api/status
     envVars:
       - key: PORT
         value: 10000
+      # Set this in Render dashboard → Environment → GROQ_API_KEY
       - key: GROQ_API_KEY
         sync: false
+      # Limit TensorFlow threads on constrained Render container
+      - key: TF_CPP_MIN_LOG_LEVEL
+        value: "2"
+      - key: OMP_NUM_THREADS
+        value: "2"

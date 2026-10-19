@@ -9,8 +9,18 @@ Supports:
 
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any
-import torch
-import torch.nn as nn
+
+# PyTorch is optional — only needed for local training.
+# On Render (requirements-render.txt) torch is omitted to keep image lean.
+try:
+    import torch
+    import torch.nn as nn
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None   # type: ignore
+    nn = None      # type: ignore
+
 
 LABEL_DEFINITIONS = {
     0: {"name": "Background", "tag": "BG", "color": "transparent"},
@@ -41,21 +51,22 @@ SUBREGION_HIERARCHY = {
 }
 
 
-class DoubleConv3D(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int):
-        super().__init__()
-        self.conv = nn.Sequential(
-            nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1, bias=False),
-            nn.InstanceNorm3d(out_channels),
-            nn.LeakyReLU(0.01, inplace=True),
-            nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1, bias=False),
-            nn.InstanceNorm3d(out_channels),
-            nn.LeakyReLU(0.01, inplace=True)
-        )
-        self.residual = (
-            nn.Conv3d(in_channels, out_channels, kernel_size=1, bias=False)
-            if in_channels != out_channels else nn.Identity()
-        )
+if TORCH_AVAILABLE:
+    class DoubleConv3D(nn.Module):
+        def __init__(self, in_channels: int, out_channels: int):
+            super().__init__()
+            self.conv = nn.Sequential(
+                nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1, bias=False),
+                nn.InstanceNorm3d(out_channels),
+                nn.LeakyReLU(0.01, inplace=True),
+                nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1, bias=False),
+                nn.InstanceNorm3d(out_channels),
+                nn.LeakyReLU(0.01, inplace=True)
+            )
+            self.residual = (
+                nn.Conv3d(in_channels, out_channels, kernel_size=1, bias=False)
+                if in_channels != out_channels else nn.Identity()
+            )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.conv(x) + self.residual(x)
@@ -127,20 +138,25 @@ class NativeBrainTumorUNet3D(nn.Module):
 
 def load_segmentation_model(
     model_path: Optional[str] = None,
-    device: Optional[torch.device] = None
-) -> Tuple[NativeBrainTumorUNet3D, bool, Dict[str, Any]]:
-    if device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    model = NativeBrainTumorUNet3D(in_channels=1, out_channels=4).to(device)
-    is_loaded = False
+    device=None
+):
+    """Load 3D U-Net weights. Returns (model, is_loaded, meta).
+    Returns (None, False, meta) when PyTorch is not installed."""
     meta = {
-        "device": str(device),
+        "device": "cpu",
         "architecture": "NativeBrainTumorUNet3D (BraTS Volumetric Benchmark)",
         "in_channels": 1,
         "out_channels": 4,
         "checkpoint": None
     }
+
+    if not TORCH_AVAILABLE:
+        print("[INFO] PyTorch not installed — 3D U-Net weights not loaded (numpy pipeline active)")
+        return None, False, meta
+
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    meta["device"] = str(device)
 
     if model_path:
         p = Path(model_path)

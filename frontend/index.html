@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brain Tumor AI Diagnostic Suite — Clinical Radiology & 3D Volumetric Workstation</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Three.js & OrbitControls — locally bundled for offline/CDN-fallback reliability -->
+  <script src="assets/js/three.min.js"></script>
+  <script src="assets/js/OrbitControls.js"></script>
+</head>
+<body>
+
+  <div class="ambient-grid"></div>
+
+  <div class="app-layout">
+    <!-- Top Navigation -->
+    <header class="top-nav">
+      <div class="brand" id="brandHomeBtn">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <div>
+          <span class="brand-title">BRAIN TUMOR <span style="color: var(--accent-cyan);">AI SUITE</span></span>
+          <span class="brand-badge">CLINICAL WORKSTATION v2.0</span>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <div class="telemetry-chip">
+          <span class="pulse-dot"></span>
+          <span id="telemetryStatus">SYSTEM ONLINE</span>
+          <span style="opacity: 0.5;">|</span>
+          <span id="telemetryDevice">METAL GPU M5</span>
+        </div>
+
+        <!-- Light / Dark Theme Toggle Button -->
+        <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Light / Dark Workstation Mode">
+          <svg id="themeIconSun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg id="themeIconMoon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+          <span id="themeToggleText">Light Mode</span>
+        </button>
+
+        <button class="btn btn-secondary btn-sm" id="btnNotice">Research Notice</button>
+      </div>
+    </header>
+
+    <!-- Workstation Tabs (2D Classifier is the primary Home page) -->
+    <nav class="workstation-nav">
+      <button class="nav-tab-btn active" data-tab="scan2d">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+        2D Classifier & Grad-CAM (Home)
+      </button>
+      <button class="nav-tab-btn" data-tab="segmentation3d">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        3D Volumetric Lab & WebGL
+      </button>
+      <button class="nav-tab-btn" data-tab="explainer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Multimodal Medical Assistant & PDF
+      </button>
+      <button class="nav-tab-btn" data-tab="reports">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Clinical Report
+      </button>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="main-container">
+
+      <!-- ============================================================ -->
+      <!-- TAB: 2D CLASSIFIER & GRAD-CAM (DEFAULT HOME) -->
+      <!-- ============================================================ -->
+      <section class="tab-pane active" id="tab-scan2d">
+        <div class="disclaimer-banner">
+          ⚠️ <strong>Investigational Notice:</strong> EfficientNetB0 Classifier (93.31% Test Accuracy, 100% Normal Brain Recall). For research and educational evaluation only.
+        </div>
+
+        <!-- Enhanced MRI Upload Hero Section -->
+        <div class="upload-hero-section">
+          <!-- Interactive Drag-and-Drop Dropzone -->
+          <div class="card" style="margin-bottom: 0;">
+            <div class="card-header">
+              <h3 class="card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Upload Patient Brain MRI
+              </h3>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">DICOM slice / JPG / PNG</span>
+            </div>
+
+            <div class="mri-dropzone" id="mriDropzone">
+              <input type="file" id="inputUpload2D" accept="image/*" style="display: none;">
+              <div class="dropzone-icon-circle">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </div>
+              <div class="dropzone-title">Drag & Drop Patient MRI Scan Here</div>
+              <div class="dropzone-subtitle">or click anywhere to browse local files</div>
+              <button type="button" class="btn btn-primary btn-sm" id="btnBrowseMri">Browse Scan File</button>
+            </div>
+          </div>
+
+          <!-- Quick Benchmark Preset Picker -->
+          <div class="card" style="margin-bottom: 0;">
+            <div class="card-header">
+              <h3 class="card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-purple)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                Zero-Click Benchmark Presets
+              </h3>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">Instant test scans</span>
+            </div>
+            <div class="presets-section-title">Select clinical scan to test immediately:</div>
+            <div class="preset-pills-grid" id="presetPillsGrid">
+              <!-- Dynamically populated with Glioma, Meningioma, Pituitary, Normal -->
+            </div>
+          </div>
+        </div>
+
+        <!-- File Stage Preview Card (Appears upon file selection) -->
+        <div class="file-stage-card" id="fileStageCard">
+          <div class="file-stage-details">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <img id="stageThumbnail" src="" style="width: 52px; height: 52px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--border-subtle);">
+              <div>
+                <div id="stageFilename" style="font-weight: 600; font-size: 0.95rem;">scan.jpg</div>
+                <div id="stageMeta" style="font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono);">Ready for Deep Learning analysis</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary btn-sm" id="btnCancelStage">Clear</button>
+              <button class="btn btn-primary btn-sm" id="btnExecuteAnalysis">Run Deep Learning Analysis</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Radiology Viewport & Diagnostics -->
+        <div class="viewport-layout">
+          <div>
+            <div class="viewer-stage">
+              <div class="mri-canvas-wrapper" id="mriCanvasStage">
+                <img id="mriRawLayer" class="mri-layer" src="" alt="Raw MRI Scan" style="display: none;">
+                <img id="mriHeatmapLayer" class="mri-layer" src="" alt="Grad-CAM Heatmap" style="display: none; opacity: 0.65;">
+                <div id="mriEmptyPrompt" style="color: var(--text-dim); text-align: center;">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 8px; opacity: 0.5;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <p>Drop an MRI scan above or pick a benchmark preset</p>
+                </div>
+              </div>
+
+              <div class="hud-overlay">
+                <div class="hud-top">
+                  <span id="hudResolution">224 x 224 px</span>
+                  <span id="hudLayer">TOP CONVOLUTIONAL LAYER</span>
+                </div>
+                <div class="hud-bottom">
+                  <span id="hudZoom">ZOOM: 100%</span>
+                  <span id="hudLatency">LATENCY: 0 ms</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Controls Bar -->
+            <div class="controls-bar">
+              <div class="control-group">
+                <span class="control-label">Grad-CAM Opacity:</span>
+                <input type="range" class="range-slider" id="sliderCamOpacity" min="0" max="100" value="65">
+                <span id="labelCamOpacity" style="font-family: var(--font-mono); font-size: 0.8rem;">65%</span>
+              </div>
+
+              <div class="control-group">
+                <button class="btn btn-secondary btn-sm" id="btnLayerRaw">Raw MRI</button>
+                <button class="btn btn-secondary btn-sm active" id="btnLayerBlend">Overlay</button>
+                <button class="btn btn-secondary btn-sm" id="btnLayerHeatmap">Heatmap Only</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Diagnostic Results Sidebar -->
+          <div>
+            <div class="card" id="cardDiagnosisSummary" style="margin-bottom: 16px;">
+              <div class="card-header">
+                <h4 class="card-title">Clinical Diagnostic Finding</h4>
+              </div>
+              <div id="diagnosticBody">
+                <p style="color: var(--text-dim); font-size: 0.88rem;">Select a preset or upload an MRI to view analysis.</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h4 class="card-title">Class Probabilities</h4>
+              </div>
+              <div id="probBarsContainer">
+                <p style="color: var(--text-dim); font-size: 0.88rem;">Awaiting inference.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB: 3D VOLUMETRIC SEGMENTATION & WEBGL -->
+      <!-- ============================================================ -->
+      <section class="tab-pane" id="tab-segmentation3d">
+        <div class="viewport-layout">
+          <div>
+            <!-- Three.js 3D Isosurface WebGL Viewport -->
+            <div class="card" style="padding: 12px; margin-bottom: 16px;">
+              <div class="card-header" style="margin-bottom: 8px; padding-bottom: 8px;">
+                <h4 class="card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                  Interactive 3D Tumor Isosurface (Marching Cubes WebGL)
+                </h4>
+                <div class="control-group">
+                  <button class="btn btn-secondary btn-sm" id="btnToggleAutoRotate">Auto-Rotate</button>
+                  <button class="btn btn-secondary btn-sm" id="btnResetCamera">Reset Camera</button>
+                </div>
+              </div>
+
+              <div class="webgl-container" id="threejsViewport">
+                <div class="mesh-controls">
+                  <button class="btn btn-secondary btn-sm" id="btnMeshWT" style="color: var(--accent-cyan); border-color: var(--accent-cyan);">Whole Tumor (WT)</button>
+                  <button class="btn btn-secondary btn-sm" id="btnMeshTC" style="color: var(--accent-red); border-color: var(--accent-red);">Tumor Core (TC)</button>
+                  <button class="btn btn-secondary btn-sm" id="btnMeshET" style="color: var(--accent-gold); border-color: var(--accent-gold);">Enhancing (ET)</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Orthogonal MPR Slice Viewport -->
+            <div class="viewer-stage" style="min-height: 400px;">
+              <div class="mri-canvas-wrapper" style="width: 380px; height: 380px;">
+                <img id="mprMriLayer" class="mri-layer" src="" alt="MPR Slice">
+                <img id="mprSegLayer" class="mri-layer" src="" alt="MPR Segmentation" style="opacity: 0.6;">
+              </div>
+            </div>
+
+            <!-- MPR Controls -->
+            <div class="controls-bar">
+              <div class="control-group">
+                <button class="btn btn-secondary btn-sm active" data-plane="axial">Axial (Z)</button>
+                <button class="btn btn-secondary btn-sm" data-plane="coronal">Coronal (Y)</button>
+                <button class="btn btn-secondary btn-sm" data-plane="sagittal">Sagittal (X)</button>
+              </div>
+
+              <div class="control-group" style="flex: 1; max-width: 340px;">
+                <span class="control-label" id="labelMprSlice">Slice: 71 / 155</span>
+                <input type="range" class="range-slider" id="sliderMprSlice" min="0" max="154" value="71" style="width: 100%;">
+              </div>
+
+              <div class="control-group">
+                <button class="btn btn-secondary btn-sm" id="btnCinePlay">▶ Cine Loop (18 fps)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Volumetric Measurements Sidebar -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h4 class="card-title">3D Volumetric Measurements</h4>
+              </div>
+              <div id="volumetricMetricsBody">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h4 class="card-title">Select BraTS Benchmark Case</h4>
+              </div>
+              <div id="segCasesSelector" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Populated with 6 cases -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB: MULTIMODAL MEDICAL ASSISTANT & PDF -->
+      <!-- ============================================================ -->
+      <section class="tab-pane" id="tab-explainer">
+        <div style="display: grid; grid-template-columns: 340px 1fr; gap: 20px;">
+          <!-- Left Panel: Context & PDF -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h4 class="card-title">Attached Context</h4>
+              </div>
+              <div id="activeContextCard" style="font-size: 0.85rem; color: var(--text-muted);">
+                <p>🖼️ <strong>MRI Scan:</strong> <span id="ctxMriStatus">None</span></p>
+                <p style="margin-top: 6px;">📄 <strong>Radiology PDF:</strong> <span id="ctxPdfStatus">None</span></p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h4 class="card-title">Upload Clinical Report</h4>
+              </div>
+              <input type="file" id="inputPdfUpload" accept=".pdf" style="display: none;">
+              <button class="btn btn-secondary btn-block" style="width: 100%; margin-bottom: 12px;" onclick="document.getElementById('inputPdfUpload').click();">
+                Select Medical PDF (.pdf)
+              </button>
+              <div id="pdfSummaryExcerpt" style="font-size: 0.78rem; color: var(--text-dim); max-height: 180px; overflow-y: auto;">
+                Upload a hospital radiology report to extract and summarize.
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h4 class="card-title">LLM Configuration</h4>
+              </div>
+              <label class="control-label" style="display: block; margin-bottom: 4px;">Groq API Key (Optional):</label>
+              <input type="password" id="inputGroqKey" class="chat-input" placeholder="gsk_..." style="width: 100%; margin-bottom: 8px;">
+              <label class="control-label" style="display: block; margin-bottom: 4px;">Active Model:</label>
+              <select id="selectLlmModel" class="chat-input" style="width: 100%;">
+                <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Recommended)</option>
+                <option value="llama-3.1-8b-instant">Llama 3.1 8B (Fast)</option>
+                <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Right Panel: Chat Stream -->
+          <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+              <div class="chat-bubble assistant">
+                👋 Hello! I am your <strong>AI Medical Explainer Assistant</strong>. I am trained to translate complex neuro-oncology reports and brain MRI scans into plain, compassionate, and easy-to-understand language.<br><br>
+                <em>Medical Safety Notice: I provide educational explanations and cannot diagnose or prescribe treatment. Always discuss clinical findings with your doctor.</em>
+              </div>
+            </div>
+
+            <form class="chat-input-bar" id="chatForm">
+              <input type="text" class="chat-input" id="chatInputText" placeholder="Ask about your scan, tumor type, symptoms, or medical terms..." autocomplete="off">
+              <button type="submit" class="btn btn-primary" id="btnChatSend">Send</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB: CLINICAL REPORT -->
+      <!-- ============================================================ -->
+      <section class="tab-pane" id="tab-reports">
+        <div class="card" style="max-width: 860px; margin: 0 auto; background: #fff; color: #1e293b; padding: 36px;" id="printableReport">
+          <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #0284c7; padding-bottom: 14px; margin-bottom: 20px;">
+            <div>
+              <h2 style="color: #0369a1; font-family: var(--font-display);">NEURO-ONCOLOGY INVESTIGATIONAL REPORT</h2>
+              <p style="font-size: 0.85rem; color: #64748b;">Automated Deep Learning & Volumetric Morphometric Audit</p>
+            </div>
+            <div style="text-align: right; font-family: var(--font-mono); font-size: 0.85rem;">
+              <div>REPORT ID: <strong id="repId">BT-2026-001</strong></div>
+              <div>DATE: <span id="repDate">2026-10-19</span></div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <h4 style="color: #0f172a; margin-bottom: 6px;">1. Primary AI Model Classification (EfficientNetB0)</h4>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
+              <p><strong>Predicted Diagnosis:</strong> <span id="repPrediction" style="color: #0284c7; font-weight: 700;">GLIOMA</span></p>
+              <p><strong>Confidence Score:</strong> <span id="repConfidence">99.98%</span></p>
+              <p style="font-size: 0.88rem; color: #475569; margin-top: 6px;" id="repDescription">Intra-axial glial origin neoplasm affecting supportive cerebral tissue.</p>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <h4 style="color: #0f172a; margin-bottom: 6px;">2. 3D Volumetric Measurements (BraTS Protocol)</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: left;">
+              <thead>
+                <tr style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1;">
+                  <th style="padding: 8px;">Subregion Compartment</th>
+                  <th style="padding: 8px;">Volume (cm³)</th>
+                  <th style="padding: 8px;">Voxel Count</th>
+                </tr>
+              </thead>
+              <tbody id="repVolTable">
+                <tr><td style="padding: 8px;">Whole Tumor (WT)</td><td style="padding: 8px;" id="repVolWT">—</td><td style="padding: 8px;" id="repVoxWT">—</td></tr>
+                <tr><td style="padding: 8px;">Tumor Core (TC)</td><td style="padding: 8px;" id="repVolTC">—</td><td style="padding: 8px;" id="repVoxTC">—</td></tr>
+                <tr><td style="padding: 8px;">Enhancing Margin (ET)</td><td style="padding: 8px;" id="repVolET">—</td><td style="padding: 8px;" id="repVoxET">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="border-top: 1px solid #cbd5e1; padding-top: 14px; font-size: 0.78rem; color: #64748b;">
+            <strong>MANDATORY DISCLAIMER:</strong> This report is generated algorithmically by artificial intelligence for investigational research purposes only. It is non-diagnostic and must be verified by a board-certified neuroradiologist.
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+          <button class="btn btn-primary" onclick="window.print();">🖨️ Print Clinical Report</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

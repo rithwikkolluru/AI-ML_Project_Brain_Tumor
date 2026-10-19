@@ -1,0 +1,14 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints
+Brain-Tumor-M5-GPU.ipynb
+*.keras_backup
+best_model_phase1.keras
+best_model_phase1_backup.keras
+brain_tumor_model_backup.keras
+uploads_temp/
+.DS_Store

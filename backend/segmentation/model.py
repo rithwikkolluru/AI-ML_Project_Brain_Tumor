@@ -68,72 +68,78 @@ if TORCH_AVAILABLE:
                 if in_channels != out_channels else nn.Identity()
             )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.conv(x) + self.residual(x)
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            return self.conv(x) + self.residual(x)
 
 
-class NativeBrainTumorUNet3D(nn.Module):
-    """
-    Volumetric 3D U-Net with skip connections and Instance Normalization.
-    Takes 3D multi-parametric NIfTI volumes and predicts 4-class voxel segmentation.
-    """
-    def __init__(
-        self,
-        in_channels: int = 1,
-        out_channels: int = 4,
-        channels: Tuple[int, ...] = (16, 32, 64, 128, 256),
-        dropout_prob: float = 0.2
-    ):
-        super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
+    class NativeBrainTumorUNet3D(nn.Module):
+        """
+        Volumetric 3D U-Net with skip connections and Instance Normalization.
+        Takes 3D multi-parametric NIfTI volumes and predicts 4-class voxel segmentation.
+        """
+        def __init__(
+            self,
+            in_channels: int = 1,
+            out_channels: int = 4,
+            channels: Tuple[int, ...] = (16, 32, 64, 128, 256),
+            dropout_prob: float = 0.2
+        ):
+            super().__init__()
+            self.in_channels = in_channels
+            self.out_channels = out_channels
 
-        # Encoder
-        self.inc = DoubleConv3D(in_channels, channels[0])
-        self.down1 = nn.Sequential(nn.MaxPool3d(2), DoubleConv3D(channels[0], channels[1]))
-        self.down2 = nn.Sequential(nn.MaxPool3d(2), DoubleConv3D(channels[1], channels[2]))
-        self.down3 = nn.Sequential(nn.MaxPool3d(2), DoubleConv3D(channels[2], channels[3]))
-        self.down4 = nn.Sequential(
-            nn.MaxPool3d(2),
-            nn.Dropout3d(dropout_prob),
-            DoubleConv3D(channels[3], channels[4])
-        )
+            # Encoder
+            self.inc = DoubleConv3D(in_channels, channels[0])
+            self.down1 = nn.Sequential(nn.MaxPool3d(2), DoubleConv3D(channels[0], channels[1]))
+            self.down2 = nn.Sequential(nn.MaxPool3d(2), DoubleConv3D(channels[1], channels[2]))
+            self.down3 = nn.Sequential(nn.MaxPool3d(2), DoubleConv3D(channels[2], channels[3]))
+            self.down4 = nn.Sequential(
+                nn.MaxPool3d(2),
+                nn.Dropout3d(dropout_prob),
+                DoubleConv3D(channels[3], channels[4])
+            )
 
-        # Decoder
-        self.up1 = nn.ConvTranspose3d(channels[4], channels[3], kernel_size=2, stride=2)
-        self.conv_up1 = DoubleConv3D(channels[4], channels[3])
+            # Decoder
+            self.up1 = nn.ConvTranspose3d(channels[4], channels[3], kernel_size=2, stride=2)
+            self.conv_up1 = DoubleConv3D(channels[4], channels[3])
 
-        self.up2 = nn.ConvTranspose3d(channels[3], channels[2], kernel_size=2, stride=2)
-        self.conv_up2 = DoubleConv3D(channels[3], channels[2])
+            self.up2 = nn.ConvTranspose3d(channels[3], channels[2], kernel_size=2, stride=2)
+            self.conv_up2 = DoubleConv3D(channels[3], channels[2])
 
-        self.up3 = nn.ConvTranspose3d(channels[2], channels[1], kernel_size=2, stride=2)
-        self.conv_up3 = DoubleConv3D(channels[2], channels[1])
+            self.up3 = nn.ConvTranspose3d(channels[2], channels[1], kernel_size=2, stride=2)
+            self.conv_up3 = DoubleConv3D(channels[2], channels[1])
 
-        self.up4 = nn.ConvTranspose3d(channels[1], channels[0], kernel_size=2, stride=2)
-        self.conv_up4 = DoubleConv3D(channels[1], channels[0])
+            self.up4 = nn.ConvTranspose3d(channels[1], channels[0], kernel_size=2, stride=2)
+            self.conv_up4 = DoubleConv3D(channels[1], channels[0])
 
-        self.outc = nn.Conv3d(channels[0], out_channels, kernel_size=1)
+            self.outc = nn.Conv3d(channels[0], out_channels, kernel_size=1)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x1 = self.inc(x)
-        x2 = self.down1(x1)
-        x3 = self.down2(x2)
-        x4 = self.down3(x3)
-        x5 = self.down4(x4)
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            x1 = self.inc(x)
+            x2 = self.down1(x1)
+            x3 = self.down2(x2)
+            x4 = self.down3(x3)
+            x5 = self.down4(x4)
 
-        x = self.up1(x5)
-        x = self.conv_up1(torch.cat([x, x4], dim=1))
+            x = self.up1(x5)
+            x = self.conv_up1(torch.cat([x, x4], dim=1))
 
-        x = self.up2(x)
-        x = self.conv_up2(torch.cat([x, x3], dim=1))
+            x = self.up2(x)
+            x = self.conv_up2(torch.cat([x, x3], dim=1))
 
-        x = self.up3(x)
-        x = self.conv_up3(torch.cat([x, x2], dim=1))
+            x = self.up3(x)
+            x = self.conv_up3(torch.cat([x, x2], dim=1))
 
-        x = self.up4(x)
-        x = self.conv_up4(torch.cat([x, x1], dim=1))
+            x = self.up4(x)
+            x = self.conv_up4(torch.cat([x, x1], dim=1))
 
-        return self.outc(x)
+            return self.outc(x)
+else:
+    class DoubleConv3D:  # type: ignore
+        pass
+
+    class NativeBrainTumorUNet3D:  # type: ignore
+        pass
 
 
 def load_segmentation_model(
@@ -157,6 +163,9 @@ def load_segmentation_model(
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     meta["device"] = str(device)
+
+    model = NativeBrainTumorUNet3D(in_channels=1, out_channels=4).to(device)
+    is_loaded = False
 
     if model_path:
         p = Path(model_path)

@@ -149,6 +149,12 @@
         const data = await res.json();
         render3DCases(data.cases);
         loadSegmentationCase("case_001");
+        
+        // Also populate default Clinical Report with Benchmark Case #1
+        const firstCase = data.cases && data.cases[0];
+        if (firstCase && firstCase.volume_cm3) {
+          updateReportVolumetrics(firstCase.volume_cm3, firstCase.voxel_counts);
+        }
       }
     } catch (err) {
       console.warn("Failed to load 3D cases:", err);
@@ -738,6 +744,16 @@
       `;
     }
 
+    const repDate = document.getElementById("repDate");
+    if (repDate) {
+      repDate.textContent = new Date().toISOString().split("T")[0];
+    }
+
+    updateReportVolumetrics(data.volume_cm3, data.voxel_counts);
+  }
+
+  function updateReportVolumetrics(volumeCm3, voxelCounts) {
+    if (!volumeCm3) return;
     const repWT = document.getElementById("repVolWT");
     const repTC = document.getElementById("repVolTC");
     const repET = document.getElementById("repVolET");
@@ -745,12 +761,14 @@
     const repVoxTC = document.getElementById("repVoxTC");
     const repVoxET = document.getElementById("repVoxET");
 
-    if (repWT) repWT.textContent = `${data.volume_cm3.WT || 0} cm³`;
-    if (repTC) repTC.textContent = `${data.volume_cm3.TC || 0} cm³`;
-    if (repET) repET.textContent = `${data.volume_cm3.ET || 0} cm³`;
-    if (repVoxWT) repVoxWT.textContent = (data.voxel_counts.WT || 0).toLocaleString();
-    if (repVoxTC) repVoxTC.textContent = (data.voxel_counts.TC || 0).toLocaleString();
-    if (repVoxET) repVoxET.textContent = (data.voxel_counts.ET || 0).toLocaleString();
+    if (repWT) repWT.textContent = `${volumeCm3.WT || 0} cm³`;
+    if (repTC) repTC.textContent = `${volumeCm3.TC || 0} cm³`;
+    if (repET) repET.textContent = `${volumeCm3.ET || 0} cm³`;
+    if (voxelCounts) {
+      if (repVoxWT) repVoxWT.textContent = (voxelCounts.WT || 0).toLocaleString();
+      if (repVoxTC) repVoxTC.textContent = (voxelCounts.TC || 0).toLocaleString();
+      if (repVoxET) repVoxET.textContent = (voxelCounts.ET || 0).toLocaleString();
+    }
   }
 
   async function updateSliceStream() {

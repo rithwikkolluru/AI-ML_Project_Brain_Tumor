@@ -28,10 +28,7 @@ CRITICAL CLINICAL & ETHICAL PROTOCOLS:
 
 GROQ_FALLBACK_MODELS = [
     "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "llama3-70b-8192",
-    "mixtral-8x7b-32768",
-    "gemma2-9b-it"
+    "llama-3.1-8b-instant"
 ]
 
 
@@ -153,11 +150,7 @@ def stream_medical_chat(
             return
         except Exception as e:
             last_err = e
-            err_lower = str(e).lower()
-            if any(term in err_lower for term in ["decommissioned", "not_found", "404", "model_"]):
-                continue
-            else:
-                yield f"⚠️ Groq API Error: {str(e)}"
-                return
+            # Automatically try next model if model is deprecated, decommissioned, or not found
+            continue
 
     yield f"⚠️ Could not reach Groq models: {str(last_err)}. Please verify your Groq API key."

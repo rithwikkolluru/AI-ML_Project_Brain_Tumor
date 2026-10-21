@@ -13,6 +13,13 @@ import cv2
 from PIL import Image
 import tensorflow as tf
 
+# Enforce strict thread limits for constrained container environments (e.g. Render 512MB RAM)
+try:
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+except Exception:
+    pass
+
 CLASSES = ["glioma", "meningioma", "notumor", "pituitary"]
 
 CLASS_META = {
@@ -105,13 +112,24 @@ class BrainTumorClassifier2D:
 
         probabilities = {CLASSES[i]: round(float(preds[i]) * 100, 2) for i in range(len(CLASSES))}
 
-        # Generate Grad-CAM Saliency Map
-        heatmap_b64, overlay_b64 = self._generate_gradcam_overlay(img_tensor, img_resized, class_idx)
+        # Generate Grad-CAM Saliency Map with safety fallback
+        heatmap_b64, overlay_b64 = None, None
+        try:
+            heatmap_b64, overlay_b64 = self._generate_gradcam_overlay(img_tensor, img_resized, class_idx)
+        except Exception as e:
+            print(f"[WARNING] Grad-CAM generation skipped to protect memory: {e}")
 
         # Buffer original preview as Base64
         buf_orig = io.BytesIO()
         img_resized.save(buf_orig, format="PNG")
         original_b64 = "data:image/png;base64," + base64.b64encode(buf_orig.getvalue()).decode("utf-8")
+
+        # Explicit garbage collection to free tensor buffers on low-memory servers
+        try:
+            import gc
+            gc.collect()
+        except Exception:
+            pass
 
         return {
             "prediction": predicted_class,

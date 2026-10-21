@@ -29,16 +29,14 @@ def extract_surface_mesh_from_mask(
     dx, dy, dz = voxel_spacing
 
     try:
-        # Adaptive step size to control triangle counts for smooth 60fps WebGL rendering
-        step = 1
-        if voxel_count > 90000:
-            step = 2
-        elif voxel_count > 300000:
+        # Adaptive step size to control triangle counts for smooth 60fps WebGL rendering and low memory footprint
+        step = 2 if voxel_count > 1000 else 1
+        if voxel_count > 100000:
             step = 3
 
         # Pad volume by 1 voxel to guarantee watertight isosurfaces at boundaries
         padded = np.pad(binary_mask, pad_width=1, mode="constant", constant_values=0)
-        verts, faces, normals, _ = marching_cubes(
+        verts, faces, _, _ = marching_cubes(
             padded,
             level=0.5,
             spacing=(dx, dy, dz),
@@ -64,9 +62,8 @@ def extract_surface_mesh_from_mask(
         ]
 
         return {
-            "vertices": np.round(verts_centered.flatten(), 2).tolist(),
+            "vertices": np.round(verts_centered.flatten(), 1).tolist(),
             "faces": faces.flatten().tolist(),
-            "normals": np.round(normals.flatten(), 3).tolist() if normals is not None else [],
             "vertex_count": len(verts),
             "face_count": len(faces),
             "centroid": np.round(centroid, 2).tolist(),

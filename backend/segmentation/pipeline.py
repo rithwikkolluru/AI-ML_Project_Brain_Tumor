@@ -214,8 +214,13 @@ class VolumetricSegmentationPipeline:
 
         slice_pack = render_slice_pack(mri_slice, gt_slice)
 
-        # Generate 3D Meshes for Three.js
-        meshes = generate_subregion_meshes(gt_vol.data, gt_vol.voxel_spacing)
+        # Generate or retrieve cached 3D Meshes for Three.js (prevents CPU/RAM spikes)
+        if not hasattr(self, "_mesh_cache"):
+            self._mesh_cache = {}
+
+        if case_key not in self._mesh_cache:
+            self._mesh_cache[case_key] = generate_subregion_meshes(gt_vol.data, gt_vol.voxel_spacing)
+        meshes = self._mesh_cache[case_key]
 
         # Volumetric metrics
         metrics = compute_case_subregion_metrics(gt_vol.data, gt_vol.data, gt_vol.voxel_spacing)

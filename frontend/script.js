@@ -105,7 +105,12 @@
     if (tabId === "segmentation3d") {
       // Lazy-init Three.js now that the container is visible and has real dimensions
       ensureThreeJs();
-      setTimeout(() => onWindowResize(), 80);
+      setTimeout(() => {
+        onWindowResize();
+        if (state.scan3d && state.scan3d.meshes && state.scan3d.meshes.has_mesh) {
+          render3DMesh(state.scan3d.meshes);
+        }
+      }, 100);
     }
   }
 

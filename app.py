@@ -7,7 +7,7 @@ import cv2
 import tensorflow as tf
 from PIL import Image
 from pypdf import PdfReader
-from groq import Groq
+import google.generativeai as genai
 
 # ============================================================
 # 1. APP CONFIGURATION & STYLING
@@ -101,39 +101,22 @@ my_cnn_model = load_cnn_model()
 st.sidebar.header("🔑 AI Engine Configuration")
 st.sidebar.info("Model: **EfficientNetB0 (M5 GPU Trained)**\nAccuracy: **93.31%** (1,600 test scans)\nClasses: Glioma, Meningioma, No Tumor, Pituitary")
 
-llm_mode = st.sidebar.selectbox("LLM Provider", ["Online (Groq Cloud)", "Offline (Local Gemma 4 / Ollama)"])
+llm_mode = st.sidebar.selectbox("LLM Provider", ["Online (Gemini Cloud)", "Offline (Local Gemma 4 / Ollama)"])
 
-groq_key = st.sidebar.text_input(
-    "Groq API Key", 
+gemini_key = st.sidebar.text_input(
+    "Gemini API Key", 
     type="password", 
-    value=os.environ.get("GROQ_API_KEY", ""), 
-    placeholder="Enter gsk_... key"
+    value=os.environ.get("GEMINI_API_KEY", os.environ.get("GOOGLE_API_KEY", "")), 
+    placeholder="Enter AIza... key"
 )
 
-# Dynamically fetch available models from Groq using user's key if provided
-GROQ_MODELS = ["llama-3.1-8b-instant"]
-if groq_key and "gsk_" in groq_key:
-    try:
-        client_probe = Groq(api_key=groq_key.strip())
-        models_list = client_probe.models.list()
-        # Filter for chat completion models
-        available_models = [
-            m.id for m in models_list.data 
-            if not m.id.startswith("whisper") and not m.id.startswith("distil-whisper")
-        ]
-        if available_models:
-            # Put llama-3.1-8b-instant or first model at the top
-            if "llama-3.1-8b-instant" in available_models:
-                available_models.remove("llama-3.1-8b-instant")
-                GROQ_MODELS = ["llama-3.1-8b-instant"] + available_models
-            else:
-                GROQ_MODELS = available_models
-    except Exception:
-        GROQ_MODELS = ["llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"]
-else:
-    GROQ_MODELS = ["llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"]
+GEMINI_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-pro",
+]
 
-selected_groq_model = st.sidebar.selectbox("Groq Active Model", GROQ_MODELS, index=0)
+selected_gemini_model = st.sidebar.selectbox("Active Model", GEMINI_MODELS, index=0)
 
 if st.sidebar.button("🧹 Clear Chat History"):
     st.session_state["chat_messages"] = []
@@ -230,7 +213,7 @@ def extract_text_from_pdf(pdf_file):
 # ============================================================
 # 4. CHATBOT STREAMING COMPLETION ENGINE WITH FALLBACKS
 # ============================================================
-def stream_chatbot_response(user_prompt, conversation_history, mri_context=None, pdf_context=None, use_offline=False, target_model="llama-3.1-8b-instant"):
+def stream_chatbot_response(user_prompt, conversation_history, mri_context=None, pdf_context=None, use_offline=False, target_model="gemini-2.5-flash"):
     system_instruction = """You are a compassionate, knowledgeable AI Medical Education Assistant specializing in neuro-oncology and brain MRI scans.
 Your goal is to help patients and caregivers understand their medical scans, terms, and diagnostic reports in plain, supportive language.
 
@@ -271,46 +254,38 @@ CRITICAL MEDICAL & LEGAL RULES:
             else:
                 yield f"⚠️ Ollama Server returned status {res.status_code}. Ensure Ollama is running (`ollama run gemma4:12b`)."
         except Exception as e:
-            yield f"⚠️ Ollama Connection Error: {str(e)}. Switch to 'Online (Groq Cloud)' in the left sidebar if you don't have local Ollama running."
+            yield f"⚠️ Ollama Connection Error: {str(e)}. Switch to 'Online (Gemini Cloud)' in the left sidebar if you don't have local Ollama running."
     else:
-        if not groq_key or "YOUR_" in groq_key or len(groq_key.strip()) < 10:
-            yield "⚠️ **Groq API Key Required**: Please enter your Groq API key in the left sidebar to enable the conversational AI doctor assistant. (Get a free key at [console.groq.com](https://console.groq.com/keys))."
+        if not gemini_key or len(gemini_key.strip()) < 10:
+            yield "⚠️ **Gemini API Key Required**: Please enter your Google Gemini API key in the left sidebar to enable the conversational AI doctor assistant. (Get a free key at [aistudio.google.com](https://aistudio.google.com/app/apikey))."
             return
-        
-        # Primary candidate and fallback models in case of model retirement
-        candidate_models = [target_model] + [m for m in GROQ_MODELS if m != target_model]
-        
-        client = Groq(api_key=groq_key.strip())
-        messages = [{"role": "system", "content": system_instruction}]
-        for msg in conversation_history[-6:]:
-            messages.append({"role": msg["role"], "content": msg["content"]})
-        messages.append({"role": "user", "content": augmented_prompt})
 
-        last_error = None
-        for candidate in candidate_models:
-            try:
-                completion = client.chat.completions.create(
-                    model=candidate,
-                    messages=messages,
+        try:
+            genai.configure(api_key=gemini_key.strip())
+            model_client = genai.GenerativeModel(
+                model_name=target_model,
+                system_instruction=system_instruction,
+                generation_config=genai.types.GenerationConfig(
                     temperature=0.25,
-                    max_tokens=800,
-                    stream=True
+                    max_output_tokens=800,
                 )
-                for chunk in completion:
-                    if chunk.choices[0].delta.content:
-                        yield chunk.choices[0].delta.content
-                return
-            except Exception as e:
-                last_error = e
-                err_str = str(e).lower()
-                # If model is decommissioned, not found, or inaccessible, try next candidate
-                if "model_decommissioned" in err_str or "decommissioned" in err_str or "model_not_found" in err_str or "404" in err_str or "access" in err_str:
-                    continue
-                else:
-                    yield f"⚠️ Groq API Error: {str(e)}"
-                    return
+            )
 
-        yield f"⚠️ Groq API Error: {str(last_error)}. Please check your Groq API Key or select an active model in the sidebar."
+            history = []
+            for msg in conversation_history[-6:]:
+                role = msg["role"]
+                gemini_role = "model" if role == "assistant" else "user"
+                history.append({"role": gemini_role, "parts": [msg["content"]]})
+
+            chat = model_client.start_chat(history=history)
+            response = chat.send_message(augmented_prompt, stream=True)
+
+            for chunk in response:
+                if chunk.text:
+                    yield chunk.text
+
+        except Exception as e:
+            yield f"⚠️ Gemini API Error: {str(e)}. Please verify your API key at [aistudio.google.com](https://aistudio.google.com/app/apikey)."
 
 # ============================================================
 # 5. USER INTERFACE (Tabs Layout)
@@ -420,7 +395,7 @@ with tab_report:
                     mri_context=st.session_state["last_mri_result"],
                     pdf_context=extracted_text,
                     use_offline=is_offline,
-                    target_model=selected_groq_model
+                    target_model=selected_gemini_model
                 ))
                 
             st.info("💡 You can now chat interactively in the **💬 3. AI Medical Chatbot Assistant** tab to ask detailed follow-up questions about this report!")
@@ -470,7 +445,7 @@ with tab_chat:
                 mri_context=st.session_state["last_mri_result"],
                 pdf_context=st.session_state["last_pdf_text"],
                 use_offline=is_offline,
-                target_model=selected_groq_model
+                target_model=selected_gemini_model
             )
             full_response = st.write_stream(response_generator)
             

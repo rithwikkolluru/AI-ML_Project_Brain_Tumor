@@ -853,8 +853,8 @@
     messagesContainer.appendChild(assistantBubble);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-    const groqKey = document.getElementById("inputGroqKey")?.value || "";
-    const model = document.getElementById("selectLlmModel")?.value || "llama-3.3-70b-versatile";
+    const geminiKey = document.getElementById("inputGeminiKey")?.value || "";
+    const model = document.getElementById("selectLlmModel")?.value || "gemini-2.5-flash";
 
     const mriContext = state.scan2d ? {
       prediction: state.scan2d.prediction,
@@ -872,7 +872,7 @@
           conversation_history: state.chatHistory,
           mri_context: mriContext,
           pdf_context: state.pdfText,
-          groq_api_key: groqKey,
+          gemini_api_key: geminiKey,
           model: model
         })
       });

@@ -1,6 +1,7 @@
 """
 Brain Tumor AI Diagnostic Suite — Multimodal Conversational Medical Explainer
 Translates clinical PDF reports and answers patient inquiries with strict medical safety disclaimers.
+Powered by Google Gemini 2.5 Flash.
 """
 
 import os
@@ -11,10 +12,10 @@ import requests
 from pypdf import PdfReader
 
 try:
-    from groq import Groq
-    GROQ_AVAILABLE = True
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
 except ImportError:
-    GROQ_AVAILABLE = False
+    GEMINI_AVAILABLE = False
 
 SYSTEM_INSTRUCTION = """You are a compassionate, highly knowledgeable AI Medical Education Assistant specializing in neuro-oncology and brain MRI imaging.
 Your goal is to help patients and caregivers understand their scans, medical terminology, and radiology reports in plain, supportive, and accessible language.
@@ -26,10 +27,7 @@ CRITICAL CLINICAL & ETHICAL PROTOCOLS:
 4. When translating radiology terms (e.g. mass effect, edema, enhancing lesion, dural tail, T1-hypointense), provide plain everyday analogies.
 """
 
-GROQ_FALLBACK_MODELS = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant"
-]
+GEMINI_MODEL = "gemini-2.5-flash"
 
 
 def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
@@ -51,12 +49,13 @@ def stream_medical_chat(
     conversation_history: List[Dict[str, str]],
     mri_context: Optional[Dict[str, Any]] = None,
     pdf_context: Optional[str] = None,
-    groq_api_key: Optional[str] = None,
+    gemini_api_key: Optional[str] = None,
     use_offline: bool = False,
-    selected_model: str = "llama-3.3-70b-versatile"
+    selected_model: str = GEMINI_MODEL
 ) -> Generator[str, None, None]:
     """
-    Streams an AI conversational response, injecting active MRI diagnosis and PDF report text.
+    Streams an AI conversational response using Google Gemini 2.5 Flash,
+    injecting active MRI diagnosis and PDF report text as context.
     """
     # Context aggregation
     context_chunks = []
@@ -107,50 +106,48 @@ def stream_medical_chat(
                 yield f"⚠️ Local Ollama server returned HTTP {res.status_code}. Please ensure Ollama is active with `ollama run gemma4:12b`."
                 return
         except Exception as e:
-            yield f"⚠️ Offline Ollama connection failed: {e}. Switch to Groq Cloud mode or verify Ollama is running locally."
+            yield f"⚠️ Offline Ollama connection failed: {e}. Switch to Gemini Cloud mode or verify Ollama is running locally."
             return
 
-    # 2. Cloud Groq LLM option
-    effective_key = groq_api_key or os.environ.get("GROQ_API_KEY", "")
-    if not effective_key or len(effective_key.strip()) < 10 or "YOUR_" in effective_key:
+    # 2. Google Gemini Cloud option
+    effective_key = gemini_api_key or os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")
+    if not effective_key or len(effective_key.strip()) < 10:
         yield (
-            "⚠️ **Groq API Key Required**: Please provide a free Groq API key in the configuration panel "
-            "to chat with the AI Medical Assistant. (Sign up at [console.groq.com](https://console.groq.com/keys)).\n\n"
+            "⚠️ **Gemini API Key Required**: Please provide a Google Gemini API key in the configuration panel "
+            "to chat with the AI Medical Assistant. (Get a free key at [aistudio.google.com](https://aistudio.google.com/app/apikey)).\n\n"
             "*Educational Note: Always consult a licensed neurologist or oncologist regarding any intracranial symptoms.*"
         )
         return
 
-    if not GROQ_AVAILABLE:
-        yield "⚠️ `groq` Python client is not installed. Please install with `pip install groq`."
+    if not GEMINI_AVAILABLE:
+        yield "⚠️ `google-generativeai` Python client is not installed. Please install with `pip install google-generativeai`."
         return
 
-    client = Groq(api_key=effective_key.strip())
-    messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
-    
-    # Include last 4 conversational turns for coherence
-    for msg in conversation_history[-6:]:
-        messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
-    messages.append({"role": "user", "content": augmented_prompt})
-
-    candidate_models = [selected_model] + [m for m in GROQ_FALLBACK_MODELS if m != selected_model]
-
-    last_err = None
-    for cand in candidate_models:
-        try:
-            completion = client.chat.completions.create(
-                model=cand,
-                messages=messages,
+    try:
+        genai.configure(api_key=effective_key.strip())
+        model = genai.GenerativeModel(
+            model_name=selected_model,
+            system_instruction=SYSTEM_INSTRUCTION,
+            generation_config=genai.types.GenerationConfig(
                 temperature=0.25,
-                max_tokens=900,
-                stream=True
+                max_output_tokens=900,
             )
-            for chunk in completion:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
-            return
-        except Exception as e:
-            last_err = e
-            # Automatically try next model if model is deprecated, decommissioned, or not found
-            continue
+        )
 
-    yield f"⚠️ Could not reach Groq models: {str(last_err)}. Please verify your Groq API key."
+        # Build conversation history for multi-turn chat
+        history = []
+        for msg in conversation_history[-6:]:
+            role = msg.get("role", "user")
+            # Gemini uses "model" instead of "assistant"
+            gemini_role = "model" if role == "assistant" else "user"
+            history.append({"role": gemini_role, "parts": [msg.get("content", "")]})
+
+        chat = model.start_chat(history=history)
+        response = chat.send_message(augmented_prompt, stream=True)
+
+        for chunk in response:
+            if chunk.text:
+                yield chunk.text
+
+    except Exception as e:
+        yield f"⚠️ Gemini API Error: {str(e)}. Please verify your API key at [aistudio.google.com](https://aistudio.google.com/app/apikey)."

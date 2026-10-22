@@ -62,9 +62,9 @@ class ChatRequest(BaseModel):
     conversation_history: List[Dict[str, str]] = []
     mri_context: Optional[Dict[str, Any]] = None
     pdf_context: Optional[str] = None
-    groq_api_key: Optional[str] = None
+    gemini_api_key: Optional[str] = None
     use_offline: bool = False
-    model: str = "llama-3.3-70b-versatile"
+    model: str = "gemini-2.5-flash"
 
 
 # =========================================================================
@@ -299,13 +299,13 @@ async def extract_pdf(file: UploadFile = File(...)):
 
 @app.post("/api/chat/stream")
 async def chat_stream(request: ChatRequest):
-    """Streams conversational AI medical explainer completions via Server-Sent Events."""
+    """Streams conversational AI medical explainer completions via Server-Sent Events (Google Gemini 2.5 Flash)."""
     generator = stream_medical_chat(
         prompt=request.prompt,
         conversation_history=request.conversation_history,
         mri_context=request.mri_context,
         pdf_context=request.pdf_context,
-        groq_api_key=request.groq_api_key,
+        gemini_api_key=request.gemini_api_key,
         use_offline=request.use_offline,
         selected_model=request.model
     )

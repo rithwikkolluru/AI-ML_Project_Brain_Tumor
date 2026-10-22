@@ -12,8 +12,8 @@ services:
     envVars:
       - key: PORT
         value: 10000
-      # Set this in Render dashboard → Environment → GROQ_API_KEY
-      - key: GROQ_API_KEY
+      # Set this in Render dashboard → Environment → GEMINI_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
       # Limit TensorFlow threads on constrained Render container
       - key: TF_CPP_MIN_LOG_LEVEL

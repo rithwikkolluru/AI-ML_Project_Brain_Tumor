@@ -30,7 +30,13 @@ from backend.segmentation.surface_mesh import generate_subregion_meshes
 from backend.segmentation.metrics import compute_case_subregion_metrics
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-MODEL_2D_PATH = BASE_DIR / "brain_tumor_model.keras"
+
+# On Render's 512MB free tier the full 39MB model strains RAM during Grad-CAM.
+# Prefer the lighter phase1 model (20MB) if available; fall back to the full model.
+_PHASE1_MODEL = BASE_DIR / "best_model_phase1.keras"
+_FULL_MODEL = BASE_DIR / "brain_tumor_model.keras"
+MODEL_2D_PATH = _PHASE1_MODEL if _PHASE1_MODEL.exists() else _FULL_MODEL
+
 DATA_2D_DIR = BASE_DIR / "data" / "samples_2d"
 DATA_3D_DIR = BASE_DIR / "data" / "segmentation"
 FRONTEND_DIR = BASE_DIR / "frontend"

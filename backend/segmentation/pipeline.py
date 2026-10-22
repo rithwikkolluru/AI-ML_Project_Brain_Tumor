@@ -214,12 +214,25 @@ class VolumetricSegmentationPipeline:
 
         slice_pack = render_slice_pack(mri_slice, gt_slice)
 
-        # Generate or retrieve cached 3D Meshes for Three.js (prevents CPU/RAM spikes)
+        # Load pre-computed mesh cache (avoids live Marching Cubes which causes 502s on Render free tier)
         if not hasattr(self, "_mesh_cache"):
             self._mesh_cache = {}
 
         if case_key not in self._mesh_cache:
-            self._mesh_cache[case_key] = generate_subregion_meshes(gt_vol.data, gt_vol.voxel_spacing)
+            cache_file = self.data_dir / f"meshes_{case_key}.json"
+            if cache_file.exists():
+                try:
+                    with open(cache_file, "r") as f:
+                        self._mesh_cache[case_key] = json.load(f)
+                    print(f"[INFO] Loaded pre-computed mesh cache for {case_key}")
+                except Exception as e:
+                    print(f"[WARNING] Could not read mesh cache for {case_key}: {e}. Computing live …")
+                    self._mesh_cache[case_key] = generate_subregion_meshes(gt_vol.data, gt_vol.voxel_spacing)
+            else:
+                # Fallback: compute live (slow on constrained servers — run precompute_meshes.py first)
+                print(f"[WARNING] No mesh cache found for {case_key}. Computing live (may be slow) …")
+                self._mesh_cache[case_key] = generate_subregion_meshes(gt_vol.data, gt_vol.voxel_spacing)
+
         meshes = self._mesh_cache[case_key]
 
         # Volumetric metrics
